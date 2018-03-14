@@ -11,7 +11,7 @@ import unittest
 class parentTest(unittest.TestCase):
     def calculateCoefficients(self, thres, sMatData):
         psm.usePythonTypes()
-        chanCalc = chanutil.asymCal(thres, units=chanutil.hartrees)
+        chanCalc = chanutil.asymCal(thres, units=chanutil.HARTs)
         return psm.calculateCoefficients(sMatData, chanCalc), chanCalc
 
 class test_parSmat(parentTest):

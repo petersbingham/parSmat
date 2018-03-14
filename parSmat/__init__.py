@@ -2,25 +2,10 @@ import pynumwrap as nw
 import sympy as sy
 from sympy.matrices import Matrix as sy_matrix
 import collections
-
-class parSmatException(Exception):
-    def __init__(self, string):
-        self.string = string
-    def __str__(self):
-        return "Rad Well Error: " + self.string
-
-def calculateCoefficients(sMatData, chanCalc, **kwargs):
-    enes = [ene for ene in sorted(sMatData.keys(), key=lambda val: val.real)]
-    _checkCoeffInput(enes, sMatData, chanCalc)
-    return _calculateCoefficients(enes, sMatData, chanCalc, **kwargs)
-
-def getElasticFinFun(coeffs, chanCalc):
-    mat = _getElasticMatrix(coeffs, chanCalc, True)
-    return lambda ene: nw.fromSympyMatrix(mat.subs('k', chanCalc.fk(ene)))
-
-def getElasticSmatFun(coeffs, chanCalc, **kwargs):
-    mat = _getElasticMatrix(coeffs, chanCalc, False, **kwargs)
-    return lambda ene: nw.fromSympyMatrix(mat.subs('k', chanCalc.fk(ene)))
+try:
+    import tisutil as tu
+except:
+    tu = None
 
 
 ########################################################################   
@@ -160,7 +145,7 @@ def _getElasticMatrix(coeffs, chanCalc, finOnly, **kwargs):
     if not finOnly:
         matLst_fout = []
     fact1 = (1.0/2.0)
-    fact2 = 1.0/chanCalc.getMult()
+    fact2 = 1.0/chanCalc.getEneConv()
     for m in range(numChannels):
         matLst_fin.append([])
         if not finOnly:
@@ -193,6 +178,35 @@ def _getElasticMatrix(coeffs, chanCalc, finOnly, **kwargs):
         return mat_fout * mat_fin_inv
     else:
         return mat_fin
+
+########################################################################   
+######################### Public Interface #############################
+########################################################################
+
+class parSmatException(Exception):
+    def __init__(self, string):
+        self.string = string
+    def __str__(self):
+        return "Rad Well Error: " + self.string
+
+def calculateCoefficients(sMatData, chanCalc, **kwargs):
+    enes = [ene for ene in sorted(sMatData.keys(), key=lambda val: val.real)]
+    _checkCoeffInput(enes, sMatData, chanCalc)
+    return _calculateCoefficients(enes, sMatData, chanCalc, **kwargs)
+
+def getElasticFinFun(coeffs, chanCalc):
+    mat = _getElasticMatrix(coeffs, chanCalc, True)
+    ret = lambda ene: nw.fromSympyMatrix(mat.subs('k', chanCalc.fk(ene)))
+    if tu is not None:
+        ret = tu.cPolySmat(mat, 'k', chanCalc)
+    return ret
+
+def getElasticSmatFun(coeffs, chanCalc, **kwargs):
+    mat = _getElasticMatrix(coeffs, chanCalc, False, **kwargs)
+    ret = lambda ene: nw.fromSympyMatrix(mat.subs('k', chanCalc.fk(ene)))
+    if tu is not None:
+        ret = tu.cPolySmat(mat, 'k', chanCalc)
+    return ret
 
 def usePythonTypes(dps=nw.dps_default_python):
     nw.usePythonTypes(dps)
