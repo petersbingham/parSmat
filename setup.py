@@ -10,5 +10,5 @@ setup(name='parSmat',
       author="Peter Bingham",
       author_email="petersbingham@hotmail.co.uk",
       packages=['parSmat'],
-      package_data={'parSmat': ['*']}
+      package_data={'parSmat': ['tests/*']}
      )
