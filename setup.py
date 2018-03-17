@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 
 from distutils.core import setup
+import shutil
+shutil.copy('README.md', 'parSmat/README.md')
 
 setup(name='parSmat',
       version='0.3',
@@ -8,4 +10,5 @@ setup(name='parSmat',
       author="Peter Bingham",
       author_email="petersbingham@hotmail.co.uk",
       packages=['parSmat'],
+      package_data={'parSmat': ['*']}
      )
