@@ -1,6 +1,6 @@
 import pynumwrap as nw
-import sympy as sy
-from sympy.matrices import Matrix as sy_matrix
+import sympy as sym
+from sympy.matrices import Matrix as sym_matrix
 import collections
 try:
     import tisutil as tu
@@ -36,7 +36,7 @@ def _checkCoeffInput(enes, sMatData, chanCalc):
     if excStr != "":
         raise parSmatException(excStr)
 
-def _calculateCoefficients(enes, sMatData, chanCalc, **kwargs):
+def _calculateCoefficients(enes, sMatData, chanCalc):
     numData = len(sMatData)
     numPolyTerms = numData / 2
     numCoeffs = numPolyTerms + 1
@@ -67,7 +67,7 @@ def _calculateCoefficients(enes, sMatData, chanCalc, **kwargs):
                         sysMat[_row(numData,m,ei),_betaIndex(numPolyTerms,numChannels,j,ti)] = betaCoeff
                 resVec[_row(numData,m,ei),0] = _result(sMatData, m, n, ene)
                 ei += 1
-        coeffVec = nw.lin_solve(sysMat, resVec, **kwargs)
+        coeffVec = nw.lin_solve(sysMat, resVec)
         _copyColumnCoeffs(alphas, betas, coeffVec, numPolyTerms, numChannels, numCoeffs, n)
     return alphas, betas
 
@@ -140,7 +140,7 @@ def _getElasticMatrix(coeffs, chanCalc, finOnly, **kwargs):
     alphas = coeffs[0]
     betas = coeffs[1]
     numChannels = chanCalc.getNumberChannels()
-    k = nw.sy.symbols('k')
+    k = nw.sym.symbols('k')
     matLst_fin = []
     if not finOnly:
         matLst_fout = []
@@ -159,7 +159,7 @@ def _getElasticMatrix(coeffs, chanCalc, finOnly, **kwargs):
                 A = alphas[ci][m,n]
                 B = betas[ci][m,n]
                 real = nw.toSympy(A)*k**(ln-lm+2*ci)
-                imag = sy.I*nw.toSympy(B)*k**(ln+lm+1+2*ci)
+                imag = sym.I*nw.toSympy(B)*k**(ln+lm+1+2*ci)
                 fact3 = fact1*fact2**ci
                 v = fact3 * (real - imag)
                 val_fin += v
@@ -168,11 +168,11 @@ def _getElasticMatrix(coeffs, chanCalc, finOnly, **kwargs):
             matLst_fin[len(matLst_fin)-1].append(val_fin)
             if not finOnly:
                 matLst_fout[len(matLst_fout)-1].append(val_fout)
-    mat_fin = sy_matrix(matLst_fin)
+    mat_fin = sym_matrix(matLst_fin)
     if not finOnly:
-        mat_fout = sy_matrix(matLst_fout)
-        if "method" in kwargs:
-            mat_fin_inv = mat_fin.inv(kwargs["method"])
+        mat_fout = sym_matrix(matLst_fout)
+        if "sym_matrix_inv" in kwargs:
+            mat_fin_inv = mat_fin.inv(**kwargs["sym_matrix_inv"])
         else:
             mat_fin_inv = mat_fin.inv()
         return mat_fout * mat_fin_inv
@@ -189,10 +189,10 @@ class parSmatException(Exception):
     def __str__(self):
         return "Rad Well Error: " + self.string
 
-def calculateCoefficients(sMatData, chanCalc, **kwargs):
+def calculateCoefficients(sMatData, chanCalc):
     enes = [ene for ene in sorted(sMatData.keys(), key=lambda val: val.real)]
     _checkCoeffInput(enes, sMatData, chanCalc)
-    return _calculateCoefficients(enes, sMatData, chanCalc, **kwargs)
+    return _calculateCoefficients(enes, sMatData, chanCalc)
 
 def getElasticFinFun(coeffs, chanCalc):
     mat = _getElasticMatrix(coeffs, chanCalc, True)
