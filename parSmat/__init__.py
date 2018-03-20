@@ -215,13 +215,4 @@ def useMpmathTypes(dps=nw.dps_default_mpmath):
     nw.useMpmathTypes(dps)
 
 def setTypeMode(mode, dps=None):
-    if mode is None or mode == nw.mode_python:
-        if dps is None:
-            usePythonTypes(nw.dps_default_python)
-        else:
-            usePythonTypes(dps)
-    else:
-        if dps is None:
-            useMpmathTypes(nw.dps_default_mpmath)
-        else:
-            useMpmathTypes(dps)
+    nw.setTypeMode(mode, dps)
