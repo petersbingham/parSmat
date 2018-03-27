@@ -12,12 +12,12 @@ except:
 ###################### Calculate Coefficients ##########################
 ########################################################################
 
-def _checkCoeffInput(enes, sMatData, chanCalc):
+def _checkCoeffInput(enes, sMatData, asymCal):
     firstShape = nw.shape(sMatData[enes[0]])
     excStr = ""
     if firstShape[0]==0 or firstShape[0]!=firstShape[1]:
         excStr = "Bad Input: Matrix not square"
-    if firstShape[0]!=chanCalc.getNumberChannels():
+    if firstShape[0]!=asymCal.getNumberChannels():
         excStr = "Bad Input: Inconsistent channel specification"
     if firstShape != nw.shape(sMatData[enes[-1]]):
         excStr = "Bad Input: S-matrices have difference shapes"
@@ -36,7 +36,7 @@ def _checkCoeffInput(enes, sMatData, chanCalc):
     if excStr != "":
         raise parSmatException(excStr)
 
-def _calculateCoefficients(enes, sMatData, chanCalc):
+def _calculateCoefficients(enes, sMatData, asymCal):
     numData = len(sMatData)
     numPolyTerms = numData / 2
     numCoeffs = numPolyTerms + 1
@@ -54,14 +54,14 @@ def _calculateCoefficients(enes, sMatData, chanCalc):
                     exp = ti+1
                     for j in range(numChannels): 
                         if j==m:
-                            alphaCoeff = _primaryAlpha(sMatData, chanCalc, 
+                            alphaCoeff = _primaryAlpha(sMatData, asymCal, 
                                                        m, n, ene, exp)
-                            betaCoeff = _primaryBeta(sMatData, chanCalc, 
+                            betaCoeff = _primaryBeta(sMatData, asymCal, 
                                                      m, n, ene, exp)
                         else:
-                            alphaCoeff = _secondaryAlpha(sMatData, chanCalc, 
+                            alphaCoeff = _secondaryAlpha(sMatData, asymCal, 
                                                          m, n, j, ene, exp)
-                            betaCoeff = _secondaryBeta(sMatData, chanCalc, 
+                            betaCoeff = _secondaryBeta(sMatData, asymCal, 
                                                        m, n, j, ene, exp)
                         sysMat[_row(numData,m,ei),_alphaIndex(numPolyTerms,j,ti)] = alphaCoeff
                         sysMat[_row(numData,m,ei),_betaIndex(numPolyTerms,numChannels,j,ti)] = betaCoeff
@@ -88,17 +88,17 @@ def _getResVecInit(numData, numChannels):
     return [[0.0]]*numData*numChannels
 
 
-def _primaryAlpha(sMatData, chanCalc, m, n, ene, exp):
-    return _kl(chanCalc,n,ene,1.0) / _kl(chanCalc,m,ene,1.0) * (sMatData[ene][m,m]-1.0) * nw.pow(ene,exp)
+def _primaryAlpha(sMatData, asymCal, m, n, ene, exp):
+    return _kl(asymCal,n,ene,1.0) / _kl(asymCal,m,ene,1.0) * (sMatData[ene][m,m]-1.0) * nw.pow(ene,exp)
 
-def _primaryBeta(sMatData, chanCalc, m, n, ene, exp):
-    return -1.0j * _kl(chanCalc,m,ene,0.0) * _kl(chanCalc,n,ene,1.0) * (sMatData[ene][m,m]+1.0) * nw.pow(ene,exp)
+def _primaryBeta(sMatData, asymCal, m, n, ene, exp):
+    return -1.0j * _kl(asymCal,m,ene,0.0) * _kl(asymCal,n,ene,1.0) * (sMatData[ene][m,m]+1.0) * nw.pow(ene,exp)
 
-def _secondaryAlpha(sMatData, chanCalc, m, n, j, ene, exp):
-    return _kl(chanCalc,n,ene,1.0) / _kl(chanCalc,j,ene,1.0) * sMatData[ene][m,j] * nw.pow(ene,exp)
+def _secondaryAlpha(sMatData, asymCal, m, n, j, ene, exp):
+    return _kl(asymCal,n,ene,1.0) / _kl(asymCal,j,ene,1.0) * sMatData[ene][m,j] * nw.pow(ene,exp)
 
-def _secondaryBeta(sMatData, chanCalc, m, n, j, ene, exp):
-    return -1.0j * _kl(chanCalc,j,ene,0.0) * _kl(chanCalc,n,ene,1.0) * sMatData[ene][m,j] * nw.pow(ene,exp)
+def _secondaryBeta(sMatData, asymCal, m, n, j, ene, exp):
+    return -1.0j * _kl(asymCal,j,ene,0.0) * _kl(asymCal,n,ene,1.0) * sMatData[ene][m,j] * nw.pow(ene,exp)
 
 
 def _row(numData, m, ei):
@@ -128,31 +128,31 @@ def _copyColumnCoeffs(alphas, betas, coeffVec, numPolyTerms, numChannels, numCoe
                 alphas[ci][m,n] = nw.complex(coeffVec[_alphaIndex(numPolyTerms,m,ti),0])
                 betas[ci][m,n] = nw.complex(coeffVec[_betaIndex(numPolyTerms,numChannels,m,ti),0])
 
-def _kl(chanCalc, ch, ene, mod):
-    k = chanCalc.k(ch, ene)
-    return nw.pow(k, chanCalc.ls[ch]+mod)
+def _kl(asymCal, ch, ene, mod):
+    k = asymCal.k(ch, ene)
+    return nw.pow(k, asymCal.ls[ch]+mod)
 
 ########################################################################   
 ###################### Parameterised Functions #########################
 ########################################################################
 
-def _getElasticMatrix(coeffs, chanCalc, finOnly, **kwargs):
+def _getElasticMatrix(coeffs, asymCal, finOnly, **kwargs):
     alphas = coeffs[0]
     betas = coeffs[1]
-    numChannels = chanCalc.getNumberChannels()
+    numChannels = asymCal.getNumberChannels()
     k = nw.sym.symbols('k')
     matLst_fin = []
     if not finOnly:
         matLst_fout = []
     fact1 = (1.0/2.0)
-    fact2 = 1.0/chanCalc.getEneConv()
+    fact2 = 1.0/asymCal.getEneConv()
     for m in range(numChannels):
         matLst_fin.append([])
         if not finOnly:
             matLst_fout.append([])
         for n in range(numChannels):
-            lm = chanCalc.l(m)
-            ln = chanCalc.l(n)
+            lm = asymCal.l(m)
+            ln = asymCal.l(n)
             val_fin = 0.0
             val_fout = 0.0
             for ci in range(len(coeffs[0])):
@@ -189,23 +189,23 @@ class parSmatException(Exception):
     def __str__(self):
         return "Rad Well Error: " + self.string
 
-def calculateCoefficients(sMatData, chanCalc):
+def calculateCoefficients(sMatData, asymCal):
     enes = [ene for ene in sorted(sMatData.keys(), key=lambda val: val.real)]
-    _checkCoeffInput(enes, sMatData, chanCalc)
-    return _calculateCoefficients(enes, sMatData, chanCalc)
+    _checkCoeffInput(enes, sMatData, asymCal)
+    return _calculateCoefficients(enes, sMatData, asymCal)
 
-def getElasticFinFun(coeffs, chanCalc):
-    mat = _getElasticMatrix(coeffs, chanCalc, True)
-    ret = lambda ene: nw.fromSympyMatrix(mat.subs('k', chanCalc.fk(ene)))
+def getElasticFinFun(coeffs, asymCal):
+    mat = _getElasticMatrix(coeffs, asymCal, True)
+    ret = lambda ene: nw.fromSympyMatrix(mat.subs('k', asymCal.fk(ene)))
     if tu is not None:
-        ret = tu.cPolySmat(mat, 'k', chanCalc)
+        ret = tu.cPolySmat(mat, 'k', asymCal)
     return ret
 
-def getElasticSmatFun(coeffs, chanCalc, **kwargs):
-    mat = _getElasticMatrix(coeffs, chanCalc, False, **kwargs)
-    ret = lambda ene: nw.fromSympyMatrix(mat.subs('k', chanCalc.fk(ene)))
+def getElasticSmatFun(coeffs, asymCal, **kwargs):
+    mat = _getElasticMatrix(coeffs, asymCal, False, **kwargs)
+    ret = lambda ene: nw.fromSympyMatrix(mat.subs('k', asymCal.fk(ene)))
     if tu is not None:
-        ret = tu.cPolySmat(mat, 'k', chanCalc)
+        ret = tu.cPolySmat(mat, 'k', asymCal)
     return ret
 
 def usePythonTypes(dps=nw.dps_default_python):

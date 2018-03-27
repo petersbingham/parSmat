@@ -12,8 +12,8 @@ class parentTest(unittest.TestCase):
     def calculateCoefficients(self, dat, thres, sMatData):
         psm.useMpmathTypes(dat.TESTDPS)
         chanutil.useMpmathTypes(dat.TESTDPS)
-        chanCalc = chanutil.asymCal(chanutil.HARTs, thresholds=thres)
-        return psm.calculateCoefficients(sMatData, chanCalc), chanCalc
+        asymCal = chanutil.asymCal(chanutil.HARTs, thresholds=thres)
+        return psm.calculateCoefficients(sMatData, asymCal), asymCal
 
 class test_parSmat(parentTest):
     def runTest(self):
@@ -29,8 +29,8 @@ class test_parSmat(parentTest):
 class test_fin(parentTest):
     def runTest(self):
         import mpmathTestData as dat
-        coeffs,chanCalc = self.calculateCoefficients(dat,[0.,0.],dat.sMatData_el)
-        fun = psm.getElasticFinFun(coeffs, chanCalc)
+        coeffs,asymCal = self.calculateCoefficients(dat,[0.,0.],dat.sMatData_el)
+        fun = psm.getElasticFinFun(coeffs, asymCal)
         parFinMat = fun(3.0)
         testdps = 1e-37
         self.assertTrue(psm.nw.areMatricesClose(parFinMat,dat.finData_el_3,
@@ -39,8 +39,8 @@ class test_fin(parentTest):
 class test_Smat(parentTest):
     def runTest(self):
         import mpmathTestData as dat
-        coeffs,chanCalc = self.calculateCoefficients(dat,[0.,0.],dat.sMatData_el)
-        fun = psm.getElasticSmatFun(coeffs, chanCalc)
+        coeffs,asymCal = self.calculateCoefficients(dat,[0.,0.],dat.sMatData_el)
+        fun = psm.getElasticSmatFun(coeffs, asymCal)
         parSmat = fun(3.0)
         testdps = 1e-37
         self.assertTrue(psm.nw.areMatricesClose(parSmat,dat.sMatData_el_3,
