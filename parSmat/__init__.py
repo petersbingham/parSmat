@@ -198,7 +198,7 @@ def getElasticFinFun(coeffs, asymCal):
     mat = _getElasticMatrix(coeffs, asymCal, True)
     ret = lambda ene: nw.fromSympyMatrix(mat.subs('k', asymCal.fk(ene)))
     if tu is not None:
-        ret = tu.cPolySmat(mat, 'k', asymCal)
+        ret = tu.cPolykmat(mat, 'k', asymCal)
     return ret
 
 def getElasticSmatFun(coeffs, asymCal, **kwargs):
