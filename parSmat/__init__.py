@@ -208,6 +208,11 @@ def getElasticSmatFun(coeffs, asymCal, **kwargs):
         ret = tu.cPolySmat(mat, 'k', asymCal)
     return ret
 
+# Ancillary helper functions:
+def getNumCoeffForN(N):
+    return N/2 + 1
+
+# Type functions:
 def usePythonTypes(dps=nw.dps_default_python):
     nw.usePythonTypes(dps)
 
