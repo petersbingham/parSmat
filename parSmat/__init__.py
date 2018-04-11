@@ -7,7 +7,6 @@ try:
 except:
     tu = None
 
-
 ########################################################################   
 ###################### Calculate Coefficients ##########################
 ########################################################################
@@ -38,20 +37,31 @@ def _checkCoeffInput(enes, sMatData, asymCal):
 
 def _calculateCoefficients(enes, sMatData, asymCal):
     numData = len(sMatData)
-    numPolyTerms = numData / 2
-    numCoeffs = numPolyTerms + 1
+    if not asymCal.isPolar():
+        numUnknownTerms = numData / 2
+        numCoeffs = numUnknownTerms + 1
+    else:
+        numUnknownTerms = numData / 2
+        numCoeffs = numUnknownTerms
     numChannels = nw.shape(sMatData[enes[0]])[0]
     alphas = _initialiseCoefficients(numCoeffs, numChannels)
     betas = _initialiseCoefficients(numCoeffs, numChannels)
 
     for n in range(numChannels):
-        sysMat = nw.matrix(_getSysMatInit(numData, numChannels, numPolyTerms))
-        resVec = nw.matrix(_getResVecInit(numData, numChannels))
+        sysMat = nw.matrix(_getSysMatInit(numData, numChannels, 
+                                          numUnknownTerms))
+        if not asymCal.isPolar():
+            resVec = nw.matrix(_getResVecInit(numData, numChannels))
         for m in range(numChannels):
             ei = 0
             for ene in enes:
-                for ti in range(numPolyTerms):  #We have two indices ci (coefficient) and ti (term). We know the first term in the poly expansion so numCoeffs = numPolyTerms + 1 
-                    exp = ti+1
+                # Two indices ci (coefficient) and ti (term).
+                for ti in range(numUnknownTerms):
+                    if not asymCal.isPolar():
+                        # We know the first term in the poly expansion.
+                        exp = ti+1
+                    else:
+                        exp = ti
                     for j in range(numChannels): 
                         if j==m:
                             alphaCoeff = _primaryAlpha(sMatData, asymCal, 
@@ -63,12 +73,20 @@ def _calculateCoefficients(enes, sMatData, asymCal):
                                                          m, n, j, ene, exp)
                             betaCoeff = _secondaryBeta(sMatData, asymCal, 
                                                        m, n, j, ene, exp)
-                        sysMat[_row(numData,m,ei),_alphaIndex(numPolyTerms,j,ti)] = alphaCoeff
-                        sysMat[_row(numData,m,ei),_betaIndex(numPolyTerms,numChannels,j,ti)] = betaCoeff
-                resVec[_row(numData,m,ei),0] = _result(sMatData, m, n, ene)
+                        r = _row(numData,m,ei)
+                        c = _alphaIndex(numUnknownTerms,j,ti)
+                        sysMat[r,c] = alphaCoeff
+                        c = _betaIndex(numUnknownTerms, numChannels, j, ti)
+                        sysMat[r,c] = betaCoeff
+                if not asymCal.isPolar():
+                    resVec[_row(numData,m,ei),0] = _result(sMatData, m, n, ene)
                 ei += 1
-        coeffVec = nw.lin_solve(sysMat, resVec)
-        _copyColumnCoeffs(alphas, betas, coeffVec, numPolyTerms, numChannels, numCoeffs, n)
+        if not asymCal.isPolar():
+            coeffVec = nw.lin_solve(sysMat, resVec)
+        else:
+            coeffVec = nw.lin_solve_homo(sysMat)
+        _copyColumnCoeffs(alphas, betas, coeffVec, asymCal, numUnknownTerms, 
+                          numChannels, numCoeffs, n)
     return alphas, betas
 
 def _initialiseCoefficients(numCoeffs, numChannels):
@@ -81,34 +99,38 @@ def _initialiseCoefficients(numCoeffs, numChannels):
 def _getZeroListMats(numChannels):
     return [[0.0+0.0j]*numChannels]*numChannels
 
-def _getSysMatInit(numData, numChannels, numPolyTerms):
-    return [[0.0]*2*numPolyTerms*numChannels]*numData*numChannels
+def _getSysMatInit(numData, numChannels, numUnknownTerms):
+    return [[0.0]*2*numUnknownTerms*numChannels]*numData*numChannels
    
 def _getResVecInit(numData, numChannels):
     return [[0.0]]*numData*numChannels
 
 
 def _primaryAlpha(sMatData, asymCal, m, n, ene, exp):
-    return _kl(asymCal,n,ene,1.0) / _kl(asymCal,m,ene,1.0) * (sMatData[ene][m,m]-1.0) * nw.pow(ene,exp)
+    kcal = _kl(asymCal,n,ene,1.0) / _kl(asymCal,m,ene,1.0)
+    return kcal * (sMatData[ene][m,m]-1.0) * nw.pow(ene,exp)
 
 def _primaryBeta(sMatData, asymCal, m, n, ene, exp):
-    return -1.0j * _kl(asymCal,m,ene,0.0) * _kl(asymCal,n,ene,1.0) * (sMatData[ene][m,m]+1.0) * nw.pow(ene,exp)
+    kcal = _kl(asymCal,m,ene,0.0) * _kl(asymCal,n,ene,1.0)
+    return -1.0j * kcal * (sMatData[ene][m,m]+1.0) * nw.pow(ene,exp)
 
 def _secondaryAlpha(sMatData, asymCal, m, n, j, ene, exp):
-    return _kl(asymCal,n,ene,1.0) / _kl(asymCal,j,ene,1.0) * sMatData[ene][m,j] * nw.pow(ene,exp)
+    kcal = _kl(asymCal,n,ene,1.0) / _kl(asymCal,j,ene,1.0)
+    return kcal * sMatData[ene][m,j] * nw.pow(ene,exp)
 
 def _secondaryBeta(sMatData, asymCal, m, n, j, ene, exp):
-    return -1.0j * _kl(asymCal,j,ene,0.0) * _kl(asymCal,n,ene,1.0) * sMatData[ene][m,j] * nw.pow(ene,exp)
+    kcal = _kl(asymCal,j,ene,0.0) * _kl(asymCal,n,ene,1.0)
+    return -1.0j * kcal * sMatData[ene][m,j] * nw.pow(ene,exp)
 
 
 def _row(numData, m, ei):
     return m*numData + ei
 
-def _alphaIndex(numPolyTerms, m, ti):
-    return m*numPolyTerms + ti
+def _alphaIndex(numUnknownTerms, m, ti):
+    return m*numUnknownTerms + ti
 
-def _betaIndex(numPolyTerms, numChannels, m, ti):
-    return numPolyTerms*numChannels + m*numPolyTerms + ti
+def _betaIndex(numUnknownTerms, numChannels, m, ti):
+    return numUnknownTerms*numChannels + m*numUnknownTerms + ti
 
 
 def _result(sMatData, m, n, ene):
@@ -117,16 +139,22 @@ def _result(sMatData, m, n, ene):
         num = 1.0
     return num - sMatData[ene][m,n]
 
-def _copyColumnCoeffs(alphas, betas, coeffVec, numPolyTerms, numChannels, numCoeffs, n):
+def _copyColumnCoeffs(alphas, betas, coeffVec, asymCal, numUnknownTerms,
+                      numChannels, numCoeffs, n):
     for ci in range(numCoeffs):
-        ti = ci-1
+        if not asymCal.isPolar():
+            ti = ci-1
+        else:
+            ti = ci
         for m in range(numChannels):
-            if ci==0:
+            if not asymCal.isPolar() and ci==0:
                 if m==n:
                     alphas[ci][m,n] = 1.0
             else:
-                alphas[ci][m,n] = nw.complex(coeffVec[_alphaIndex(numPolyTerms,m,ti),0])
-                betas[ci][m,n] = nw.complex(coeffVec[_betaIndex(numPolyTerms,numChannels,m,ti),0])
+                r = _alphaIndex(numUnknownTerms,m,ti)
+                alphas[ci][m,n] = nw.complex(coeffVec[r,0])
+                r = _betaIndex(numUnknownTerms,numChannels,m,ti)
+                betas[ci][m,n] = nw.complex(coeffVec[r,0])
 
 def _kl(asymCal, ch, ene, mod):
     k = asymCal.k(ch, ene)
