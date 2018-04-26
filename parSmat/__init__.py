@@ -136,11 +136,21 @@ def _kl(asymCal, ch, ene, mod):
 ###################### Parameterised Functions #########################
 ########################################################################
 
-def _getElasticMatrix(coeffs, asymCal, finOnly, **kwargs):
+def _convert(finOnly, val, imag=False):
+    if finOnly:
+        v = nw.toSympy(val)
+        if imag:
+            v *= sym.I
+    else:
+        v = val
+        if imag:
+            v *= 1.j
+    return v
+
+def _getElasticMatrix(coeffs, asymCal, finOnly, k):
     alphas = coeffs[0]
     betas = coeffs[1]
     numChannels = asymCal.getNumberChannels()
-    k = nw.sym.symbols('k')
     matLst_fin = []
     if not finOnly:
         matLst_fout = []
@@ -158,8 +168,8 @@ def _getElasticMatrix(coeffs, asymCal, finOnly, **kwargs):
             for ci in range(len(coeffs[0])):
                 A = alphas[ci][m,n]
                 B = betas[ci][m,n]
-                real = nw.toSympy(A)*k**(ln-lm+2*ci)
-                imag = sym.I*nw.toSympy(B)*k**(ln+lm+1+2*ci)
+                real = _convert(finOnly,A)*k**(ln-lm+2*ci)
+                imag = _convert(finOnly,B,True)*k**(ln+lm+1+2*ci)
                 fact3 = fact1*fact2**ci
                 v = fact3 * (real - imag)
                 val_fin += v
@@ -168,16 +178,12 @@ def _getElasticMatrix(coeffs, asymCal, finOnly, **kwargs):
             matLst_fin[len(matLst_fin)-1].append(val_fin)
             if not finOnly:
                 matLst_fout[len(matLst_fout)-1].append(val_fout)
-    mat_fin = sym_matrix(matLst_fin)
     if not finOnly:
-        mat_fout = sym_matrix(matLst_fout)
-        if "sym_matrix_inv" in kwargs:
-            mat_fin_inv = mat_fin.inv(**kwargs["sym_matrix_inv"])
-        else:
-            mat_fin_inv = mat_fin.inv()
-        return mat_fout * mat_fin_inv
+        mat_fin = nw.matrix(matLst_fin)
+        mat_fout = nw.matrix(matLst_fout)
+        return mat_fout * nw.invert(mat_fin)
     else:
-        return mat_fin
+        return sym_matrix(matLst_fin)
 
 ########################################################################   
 ######################### Public Interface #############################
@@ -195,17 +201,17 @@ def calculateCoefficients(sMatData, asymCal):
     return _calculateCoefficients(enes, sMatData, asymCal)
 
 def getElasticFinFun(coeffs, asymCal):
-    mat = _getElasticMatrix(coeffs, asymCal, True)
+    mat = _getElasticMatrix(coeffs, asymCal, True, nw.sym.symbols('k'))
     ret = lambda ene: nw.fromSympyMatrix(mat.subs('k', asymCal.fk(ene)))
     if tu is not None:
         ret = tu.cPolykmat(mat, 'k', asymCal)
     return ret
 
-def getElasticSmatFun(coeffs, asymCal, **kwargs):
-    mat = _getElasticMatrix(coeffs, asymCal, False, **kwargs)
-    ret = lambda ene: nw.fromSympyMatrix(mat.subs('k', asymCal.fk(ene)))
+def getElasticSmatFun(coeffs, asymCal):
+    funref = lambda ene: _getElasticMatrix(coeffs, asymCal, False, 
+                                           asymCal.fk(ene))
     if tu is not None:
-        ret = tu.cPolySmat(mat, 'k', asymCal)
+        ret = tu.cSmat(funref, asymCal)
     return ret
 
 # Ancillary helper functions:
