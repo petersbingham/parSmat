@@ -44,31 +44,31 @@ def _calculateCoefficients(enes, sMatData, asymCal):
     alphas = _initialiseCoefficients(numCoeffs, numChannels)
     betas = _initialiseCoefficients(numCoeffs, numChannels)
 
-    for n in range(numChannels):
+    for j in range(numChannels):
         sysMat = nw.matrix(_getSysMatInit(numData, numChannels, numPolyTerms))
         resVec = nw.matrix(_getResVecInit(numData, numChannels))
-        for m in range(numChannels):
+        for i in range(numChannels):
             ei = 0
             for ene in enes:
                 for ti in range(numPolyTerms):  #We have two indices ci (coefficient) and ti (term). We know the first term in the poly expansion so numCoeffs = numPolyTerms + 1 
                     exp = ti+1
-                    for j in range(numChannels): 
-                        if j==m:
+                    for k in range(numChannels): 
+                        if k==i:
                             alphaCoeff = _primaryAlpha(sMatData, asymCal, 
-                                                       m, n, ene, exp)
+                                                       i, j, ene, exp)
                             betaCoeff = _primaryBeta(sMatData, asymCal, 
-                                                     m, n, ene, exp)
+                                                     i, j, ene, exp)
                         else:
                             alphaCoeff = _secondaryAlpha(sMatData, asymCal, 
-                                                         m, n, j, ene, exp)
+                                                         i, j, k, ene, exp)
                             betaCoeff = _secondaryBeta(sMatData, asymCal, 
-                                                       m, n, j, ene, exp)
-                        sysMat[_row(numData,m,ei),_alphaIndex(numPolyTerms,j,ti)] = alphaCoeff
-                        sysMat[_row(numData,m,ei),_betaIndex(numPolyTerms,numChannels,j,ti)] = betaCoeff
-                resVec[_row(numData,m,ei),0] = _result(sMatData, m, n, ene)
+                                                       i, j, k, ene, exp)
+                        sysMat[_row(numData,i,ei),_alphaIndex(numPolyTerms,k,ti)] = alphaCoeff
+                        sysMat[_row(numData,i,ei),_betaIndex(numPolyTerms,numChannels,k,ti)] = betaCoeff
+                resVec[_row(numData,i,ei),0] = _result(sMatData, i, j, ene)
                 ei += 1
         coeffVec = nw.lin_solve(sysMat, resVec)
-        _copyColumnCoeffs(alphas, betas, coeffVec, numPolyTerms, numChannels, numCoeffs, n)
+        _copyColumnCoeffs(alphas, betas, coeffVec, numPolyTerms, numChannels, numCoeffs, j)
     return alphas, betas
 
 def _initialiseCoefficients(numCoeffs, numChannels):
@@ -88,45 +88,45 @@ def _getResVecInit(numData, numChannels):
     return [[0.0]]*numData*numChannels
 
 
-def _primaryAlpha(sMatData, asymCal, m, n, ene, exp):
-    return _kl(asymCal,n,ene,1.0) / _kl(asymCal,m,ene,1.0) * (sMatData[ene][m,m]-1.0) * nw.pow(ene,exp)
+def _primaryAlpha(sMatData, asymCal, i, j, ene, exp):
+    return _kl(asymCal,j,ene,1.0) / _kl(asymCal,i,ene,1.0) * (sMatData[ene][i,i]-1.0) * nw.pow(ene,exp)
 
-def _primaryBeta(sMatData, asymCal, m, n, ene, exp):
-    return -1.0j * _kl(asymCal,m,ene,0.0) * _kl(asymCal,n,ene,1.0) * (sMatData[ene][m,m]+1.0) * nw.pow(ene,exp)
+def _primaryBeta(sMatData, asymCal, i, j, ene, exp):
+    return -1.0j * _kl(asymCal,i,ene,0.0) * _kl(asymCal,j,ene,1.0) * (sMatData[ene][i,i]+1.0) * nw.pow(ene,exp)
 
-def _secondaryAlpha(sMatData, asymCal, m, n, j, ene, exp):
-    return _kl(asymCal,n,ene,1.0) / _kl(asymCal,j,ene,1.0) * sMatData[ene][m,j] * nw.pow(ene,exp)
+def _secondaryAlpha(sMatData, asymCal, i, j, k, ene, exp):
+    return _kl(asymCal,j,ene,1.0) / _kl(asymCal,k,ene,1.0) * sMatData[ene][i,k] * nw.pow(ene,exp)
 
-def _secondaryBeta(sMatData, asymCal, m, n, j, ene, exp):
-    return -1.0j * _kl(asymCal,j,ene,0.0) * _kl(asymCal,n,ene,1.0) * sMatData[ene][m,j] * nw.pow(ene,exp)
-
-
-def _row(numData, m, ei):
-    return m*numData + ei
-
-def _alphaIndex(numPolyTerms, m, ti):
-    return m*numPolyTerms + ti
-
-def _betaIndex(numPolyTerms, numChannels, m, ti):
-    return numPolyTerms*numChannels + m*numPolyTerms + ti
+def _secondaryBeta(sMatData, asymCal, i, j, k, ene, exp):
+    return -1.0j * _kl(asymCal,k,ene,0.0) * _kl(asymCal,j,ene,1.0) * sMatData[ene][i,k] * nw.pow(ene,exp)
 
 
-def _result(sMatData, m, n, ene):
+def _row(numData, i, ei):
+    return i*numData + ei
+
+def _alphaIndex(numPolyTerms, i, ti):
+    return i*numPolyTerms + ti
+
+def _betaIndex(numPolyTerms, numChannels, i, ti):
+    return numPolyTerms*numChannels + i*numPolyTerms + ti
+
+
+def _result(sMatData, i, j, ene):
     num = 0.0
-    if m==n:
+    if i==j:
         num = 1.0
-    return num - sMatData[ene][m,n]
+    return num - sMatData[ene][i,j]
 
-def _copyColumnCoeffs(alphas, betas, coeffVec, numPolyTerms, numChannels, numCoeffs, n):
+def _copyColumnCoeffs(alphas, betas, coeffVec, numPolyTerms, numChannels, numCoeffs, j):
     for ci in range(numCoeffs):
         ti = ci-1
-        for m in range(numChannels):
+        for i in range(numChannels):
             if ci==0:
-                if m==n:
-                    alphas[ci][m,n] = 1.0
+                if i==j:
+                    alphas[ci][i,j] = 1.0
             else:
-                alphas[ci][m,n] = nw.complex(coeffVec[_alphaIndex(numPolyTerms,m,ti),0])
-                betas[ci][m,n] = nw.complex(coeffVec[_betaIndex(numPolyTerms,numChannels,m,ti),0])
+                alphas[ci][i,j] = nw.complex(coeffVec[_alphaIndex(numPolyTerms,i,ti),0])
+                betas[ci][i,j] = nw.complex(coeffVec[_betaIndex(numPolyTerms,numChannels,i,ti),0])
 
 def _kl(asymCal, ch, ene, mod):
     k = asymCal.k(ch, ene)
@@ -156,18 +156,18 @@ def _getElasticMatrix(coeffs, asymCal, finOnly, k):
         matLst_fout = []
     fact1 = (1.0/2.0)
     fact2 = 1.0/asymCal.getEneConv()
-    for m in range(numChannels):
+    for i in range(numChannels):
         matLst_fin.append([])
         if not finOnly:
             matLst_fout.append([])
-        for n in range(numChannels):
-            lm = asymCal.l(m)
-            ln = asymCal.l(n)
+        for j in range(numChannels):
+            lm = asymCal.l(i)
+            ln = asymCal.l(j)
             val_fin = 0.0
             val_fout = 0.0
             for ci in range(len(coeffs[0])):
-                A = alphas[ci][m,n]
-                B = betas[ci][m,n]
+                A = alphas[ci][i,j]
+                B = betas[ci][i,j]
                 real = _convert(finOnly,A)*k**(ln-lm+2*ci)
                 imag = _convert(finOnly,B,True)*k**(ln+lm+1+2*ci)
                 fact3 = fact1*fact2**ci
