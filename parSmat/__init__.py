@@ -215,8 +215,8 @@ def getElasticSmatFun(coeffs, asymCal):
     return ret
 
 # Ancillary helper functions:
-def getNumCoeffForN(N):
-    return N/2 + 1
+def getNumCoeffForNpts(Npts):
+    return Npts/2 + 1
 
 # Type functions:
 def usePythonTypes(dps=nw.dps_default_python):
