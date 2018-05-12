@@ -3,7 +3,7 @@ import sys
 basedir = os.path.dirname(os.path.realpath(__file__))
 sys.path.insert(0,basedir+'/../..')
 
-import parSmat as psm
+import parsmat as psm
 import channelutil as chanutil
 
 import unittest
@@ -11,10 +11,10 @@ import unittest
 class parentTest(unittest.TestCase):
     def calculateCoefficients(self, thres, sMatData):
         psm.usePythonTypes()
-        asymCal = chanutil.asymCal(chanutil.HARTs, thresholds=thres)
-        return psm.calculateCoefficients(sMatData, asymCal), asymCal
+        asymcalc = chanutil.AsymCalc(chanutil.HARTs, thresholds=thres)
+        return psm.calculateCoefficients(sMatData, asymcalc), asymcalc
 
-class test_parSmat(parentTest):
+class test_parsmat(parentTest):
     def runTest(self):
         import numpyTestData as dat
         coeffs,_ = self.calculateCoefficients([0.,2.],dat.sMatData_inel)
@@ -28,8 +28,8 @@ class test_parSmat(parentTest):
 class test_fin(parentTest):
     def runTest(self):
         import numpyTestData as dat
-        coeffs, asymCal = self.calculateCoefficients([0.,0.],dat.sMatData_el)
-        fun = psm.getElasticFinFun(coeffs, asymCal)
+        coeffs, asymcalc = self.calculateCoefficients([0.,0.],dat.sMatData_el)
+        fun = psm.getElasticFinFun(coeffs, asymcalc)
         parFinMat = fun(3.0)
         testdps = 1e-9
         self.assertTrue(psm.nw.areMatricesClose(parFinMat,dat.finData_el_3,
@@ -38,11 +38,11 @@ class test_fin(parentTest):
 class test_Smat(parentTest):
     def runTest(self):
         import numpyTestData as dat
-        coeffs, asymCal = self.calculateCoefficients([0.,0.],dat.sMatData_el)
-        fun = psm.getElasticSmatFun(coeffs, asymCal)
-        parSmat = fun(3.0)
+        coeffs, asymcalc = self.calculateCoefficients([0.,0.],dat.sMatData_el)
+        fun = psm.getElasticSmatFun(coeffs, asymcalc)
+        parsmat = fun(3.0)
         testdps = 1e-9
-        self.assertTrue(psm.nw.areMatricesClose(parSmat,dat.sMatData_el_3,
+        self.assertTrue(psm.nw.areMatricesClose(parsmat,dat.sMatData_el_3,
                                                 rtol=testdps, atol=testdps))
         
 
