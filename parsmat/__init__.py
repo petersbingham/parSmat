@@ -13,13 +13,13 @@ except:
 ########################################################################
 
 def _check_coeff_input(enes, smatdata, asymcalc):
-    firstShape = nw.shape(smatdata[enes[0]])
+    first_shape = nw.shape(smatdata[enes[0]])
     excStr = ""
-    if firstShape[0]==0 or firstShape[0]!=firstShape[1]:
+    if first_shape[0]==0 or first_shape[0]!=first_shape[1]:
         excStr = "Bad Input: Matrix not square"
-    if firstShape[0]!=asymcalc.get_number_channels():
+    if first_shape[0]!=asymcalc.get_number_channels():
         excStr = "Bad Input: Inconsistent channel specification"
-    if firstShape != nw.shape(smatdata[enes[-1]]):
+    if first_shape != nw.shape(smatdata[enes[-1]]):
         excStr = "Bad Input: S-matrices have difference shapes"
     if len(smatdata)<2:
         excStr = "Bad Input: Not enough Data"
@@ -37,16 +37,16 @@ def _check_coeff_input(enes, smatdata, asymcalc):
         raise ParSmatException(excStr)
 
 def _calculate_coefficients(enes, smatdata, asymcalc):
-    numData = len(smatdata)
-    num_poly_terms = numData / 2
+    num_data = len(smatdata)
+    num_poly_terms = num_data / 2
     num_coeffs = num_poly_terms + 1
     num_channels = nw.shape(smatdata[enes[0]])[0]
     alphas = _initialise_coefficients(num_coeffs, num_channels)
     betas = _initialise_coefficients(num_coeffs, num_channels)
 
     for j in range(num_channels):
-        sysMat = nw.matrix(_get_sys_mat_init(numData, num_channels, num_poly_terms))
-        resVec = nw.matrix(_get_res_vec_init(numData, num_channels))
+        sys_mat = nw.matrix(_get_sys_mat_init(num_data, num_channels, num_poly_terms))
+        res_vec = nw.matrix(_get_res_vec_init(num_data, num_channels))
         for i in range(num_channels):
             ei = 0
             for ene in enes:
@@ -54,20 +54,20 @@ def _calculate_coefficients(enes, smatdata, asymcalc):
                     exp = ti+1
                     for k in range(num_channels): 
                         if k==i:
-                            alphaCoeff = _primary_alpha(smatdata, asymcalc, 
+                            alpha_coeff = _primary_alpha(smatdata, asymcalc, 
+                                                         i, j, ene, exp)
+                            beta_coeff = _primary_beta(smatdata, asymcalc, 
                                                        i, j, ene, exp)
-                            betaCoeff = _primary_beta(smatdata, asymcalc, 
-                                                     i, j, ene, exp)
                         else:
-                            alphaCoeff = _secondary_alpha(smatdata, asymcalc, 
+                            alpha_coeff = _secondary_alpha(smatdata, asymcalc, 
+                                                           i, j, k, ene, exp)
+                            beta_coeff = _secondary_beta(smatdata, asymcalc, 
                                                          i, j, k, ene, exp)
-                            betaCoeff = _secondary_beta(smatdata, asymcalc, 
-                                                       i, j, k, ene, exp)
-                        sysMat[_row(numData,i,ei),_alpha_index(num_poly_terms,k,ti)] = alphaCoeff
-                        sysMat[_row(numData,i,ei),_beta_index(num_poly_terms,num_channels,k,ti)] = betaCoeff
-                resVec[_row(numData,i,ei),0] = _result(smatdata, i, j, ene)
+                        sys_mat[_row(num_data,i,ei),_alpha_index(num_poly_terms,k,ti)] = alpha_coeff
+                        sys_mat[_row(num_data,i,ei),_beta_index(num_poly_terms,num_channels,k,ti)] = beta_coeff
+                res_vec[_row(num_data,i,ei),0] = _result(smatdata, i, j, ene)
                 ei += 1
-        coeff_vec = nw.lin_solve(sysMat, resVec)
+        coeff_vec = nw.lin_solve(sys_mat, res_vec)
         _copy_column_coeffs(alphas, betas, coeff_vec, num_poly_terms, num_channels, num_coeffs, j)
     return alphas, betas
 
@@ -81,11 +81,11 @@ def _initialise_coefficients(num_coeffs, num_channels):
 def _get_zero_list_mats(num_channels):
     return [[0.0+0.0j]*num_channels]*num_channels
 
-def _get_sys_mat_init(numData, num_channels, num_poly_terms):
-    return [[0.0]*2*num_poly_terms*num_channels]*numData*num_channels
+def _get_sys_mat_init(num_data, num_channels, num_poly_terms):
+    return [[0.0]*2*num_poly_terms*num_channels]*num_data*num_channels
    
-def _get_res_vec_init(numData, num_channels):
-    return [[0.0]]*numData*num_channels
+def _get_res_vec_init(num_data, num_channels):
+    return [[0.0]]*num_data*num_channels
 
 
 def _primary_alpha(smatdata, asymcalc, i, j, ene, exp):
@@ -101,8 +101,8 @@ def _secondary_beta(smatdata, asymcalc, i, j, k, ene, exp):
     return -1.0j * _kl(asymcalc,k,ene,0.0) * _kl(asymcalc,j,ene,1.0) * smatdata[ene][i,k] * nw.pow(ene,exp)
 
 
-def _row(numData, i, ei):
-    return i*numData + ei
+def _row(num_data, i, ei):
+    return i*num_data + ei
 
 def _alpha_index(num_poly_terms, i, ti):
     return i*num_poly_terms + ti
@@ -151,15 +151,15 @@ def _get_elastic_matrix(coeffs, asymcalc, fin_only, k):
     alphas = coeffs[0]
     betas = coeffs[1]
     num_channels = asymcalc.get_number_channels()
-    matLst_fin = []
+    mat_list_fin = []
     if not fin_only:
-        matLst_fout = []
+        mat_list_fout = []
     fact1 = (1.0/2.0)
     fact2 = 1.0/asymcalc.get_ene_conv()
     for i in range(num_channels):
-        matLst_fin.append([])
+        mat_list_fin.append([])
         if not fin_only:
-            matLst_fout.append([])
+            mat_list_fout.append([])
         for j in range(num_channels):
             lm = asymcalc.l(i)
             ln = asymcalc.l(j)
@@ -175,15 +175,15 @@ def _get_elastic_matrix(coeffs, asymcalc, fin_only, k):
                 val_fin += v
                 if not fin_only:
                     val_fout += fact3 * (real + imag)
-            matLst_fin[len(matLst_fin)-1].append(val_fin)
+            mat_list_fin[len(mat_list_fin)-1].append(val_fin)
             if not fin_only:
-                matLst_fout[len(matLst_fout)-1].append(val_fout)
+                mat_list_fout[len(mat_list_fout)-1].append(val_fout)
     if not fin_only:
-        mat_fin = nw.matrix(matLst_fin)
-        mat_fout = nw.matrix(matLst_fout)
+        mat_fin = nw.matrix(mat_list_fin)
+        mat_fout = nw.matrix(mat_list_fout)
         return mat_fout * nw.invert(mat_fin)
     else:
-        return sym_matrix(matLst_fin)
+        return sym_matrix(mat_list_fin)
 
 ########################################################################   
 ######################### Public Interface #############################
