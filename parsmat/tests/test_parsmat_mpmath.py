@@ -34,7 +34,7 @@ class test_fin(parent_test):
         parFinMat = fun(3.0)
         testdps = 1e-37
         self.assertTrue(psm.nw.are_matrices_close(parFinMat,dat.finData_el_3,
-                                                rtol=testdps, atol=testdps))
+                                                  rtol=testdps, atol=testdps))
 
 class test_Smat(parent_test):
     def runTest(self):
