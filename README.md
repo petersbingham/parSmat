@@ -14,6 +14,7 @@ Author Libraries (these will have their own dependencies):
  - pynumwrap https://github.com/petersbingham/pynumwrap
  - channelutil (recommended) https://github.com/petersbingham/channelutil
  - tisutil (optional) https://github.com/petersbingham/tisutil
+ - stelempy (optional and recommended) https://github.com/petersbingham/stelempy
 
 ## Usage
 
@@ -35,5 +36,21 @@ Using the `alphas` and `betas` coefficients returned from `calculate_coefficient
 
 The following example illustrates. Explanation follows.
 ```python
->>> import parsmat as pm
+import channelutil as cu
+import twochanradialwell as tcrw
+import parsmat as psm
+
+calc = cu.AsymCalc(cu.hartrees, [0,0])
+
+cSmat = tcrw.get_Smat_fun(1.0,2.0,2.0,calc,1.0)
+dSmat = cSmat.discretise(1.,8.,12)
+
+coeffs = psm.calculate_coefficients(dSmat, calc)
+cSmat = psm.get_elastic_Smat_fun(coeffs, calc)
+dSmat = cSmat.discretise(1.,8.,100)
+dSmat.plot()
 ```
+
+The first code block imports the required dependent python packages. We are using `twochanradialwell` (https://github.com/petersbingham/twochanradialwell) to provide our example fit data but the user can of course provide their own. The next single single code block prepares the asymptotic calculator, describing the channels of our calculation. We will look at an elastic `twochanradialwell`, so the second parameter specifies two channels, each with zero angular momentum. The next block of code prepares our demo fit data from the `twochanradialwell`, the second line here uses the `tisutil.dMat` interface to create the dictionary of S-matrices. In the final block of code the fit coefficients are calculated and then used to obtain a function reference to a parameterised S-matrix. Finally this fitted S-matrix is plotted using the `tisutil.dMat` interface.
+
+The reference quoted at the beginning of this document describes a technique to find the poles of the S-matrix by looking for stable roots of the Fin. For this we recommend using the `find_roots` of the `cPolyVal` returned from `get_elastic_Fin_fun` (if tisutil is available) for several numbers of fit points and then using the `stelempy` package to locate the stable roots (corresponding to the S-matrix poles). Alternatively, the `reskit` (https://github.com/petersbingham/reskit) package provides a tool combining all of this functionality.
