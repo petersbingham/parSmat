@@ -5,7 +5,7 @@ import shutil
 shutil.copy('README.md', 'parsmat/README.md')
 
 setup(name='parsmat',
-      version='0.17',
+      version='0.18',
       description='Python package to parametrise the multi-channel S-matrix using a pade approximation.',
       author="Peter Bingham",
       author_email="petersbingham@hotmail.co.uk",

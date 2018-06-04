@@ -130,7 +130,7 @@ def _copy_column_coeffs(alphas, betas, coeff_vec, num_poly_terms, num_channels, 
 
 def _kl(asymcalc, ch, ene, mod):
     k = asymcalc.k(ch, ene)
-    return nw.pow(k, asymcalc.ls[ch]+mod)
+    return nw.pow(k, asymcalc.angmoms[ch]+mod)
 
 ########################################################################   
 ###################### Parameterised Functions #########################
@@ -161,8 +161,8 @@ def _get_elastic_matrix(coeffs, asymcalc, fin_only, k):
         if not fin_only:
             mat_list_fout.append([])
         for j in range(num_channels):
-            lm = asymcalc.l(i)
-            ln = asymcalc.l(j)
+            lm = asymcalc.angmom(i)
+            ln = asymcalc.angmom(j)
             val_fin = 0.0
             val_fout = 0.0
             for ci in range(len(coeffs[0])):
