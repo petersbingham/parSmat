@@ -46,6 +46,13 @@ class test_Smat(parent_test):
         self.assertTrue(psm.nw.are_matrices_close(parsmat,dat.smatdata_el_3,
                                                 rtol=testdps, atol=testdps))
 
+class test_Qmat(parent_test):
+    def runTest(self):
+        import mpmathtestdata as dat
+        coeffs,asymcalc = self.calculate_coefficients(dat,[0.,0.],dat.smatdata_el)
+        fun = psm.get_elastic_Qmat_fun(coeffs, asymcalc)
+        parqmat = fun(3.0)
+
 if __name__ == "__main__":
     #Just for debug
     b = test_parsmat()
