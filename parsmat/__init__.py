@@ -204,12 +204,12 @@ def get_elastic_Fin_fun(coeffs, asymcalc):
     mat = _get_elastic_matrix(coeffs, asymcalc, True, nw.sym.symbols('k'))
     ret = lambda ene: nw.from_sympy_matrix(mat.subs('k', asymcalc.fk(ene)))
     if tu is not None:
-        ret = tu.cPolyFin(mat, 'k', asymcalc)
+        ret = tu.cFinMatSympypolyk(mat, 'k', asymcalc)
     return ret
 
 def get_elastic_Smat_fun(coeffs, asymcalc):
     funref = lambda ene: _get_elastic_matrix(coeffs, asymcalc, False, 
-                                           asymcalc.fk(ene))
+                                             asymcalc.fk(ene))
     if tu is not None:
         ret = tu.cSmat(funref, asymcalc)
     return ret

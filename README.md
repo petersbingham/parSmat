@@ -28,7 +28,7 @@ The `smatdata`, is a dictionary like (eg python `dict` or a `tisutil.dSmat`) of 
 
 #### `get_elastic_Fin_fun(coeffs, asymcalc)`
 
-Using the `alphas` and `betas` coefficients returned from `calculate_coefficients` this function returns either an energy function reference or a `tisutil.cPolykmat` describing the parameterised Jost denominator (Fin).
+Using the `alphas` and `betas` coefficients returned from `calculate_coefficients` this function returns either an energy function reference or a `tisutil.cMatSympypolyk` describing the parameterised Jost denominator (Fin).
 
 #### `get_elastic_Smat_fun(coeffs, asymcalc)`
 
