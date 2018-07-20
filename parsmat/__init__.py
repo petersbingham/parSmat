@@ -200,8 +200,9 @@ class S_calc:
     def finialise(self):
         self.mat_fin = nw.matrix(self.list_fin)
         self.mat_fout = nw.matrix(self.list_fout)
+        self.mat_fin_inv = nw.invert(self.mat_fin)
     def get_matrix(self):
-        return self.mat_fout * nw.invert(self.mat_fin)
+        return self.mat_fout * self.mat_fin_inv
 
 class Sp_calc:
     def __init__(self, s_calc):
@@ -233,8 +234,7 @@ class Sp_calc:
         self.mat_fin_p = nw.matrix(self.list_fin_p)
         self.mat_fout_p = nw.matrix(self.list_fout_p)
     def get_matrix(self):
-        fin = self.s_calc.mat_fin
-        fin_inv = nw.invert(fin)
+        fin_inv = self.s_calc.mat_fin_inv
         fin_p = self.mat_fin_p
         fin_inv_p = -fin_inv * fin_p * fin_inv
 
