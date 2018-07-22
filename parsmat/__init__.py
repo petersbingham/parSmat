@@ -37,43 +37,47 @@ def _check_coeff_input(enes, smatdata, asymcalc):
         raise ParSmatException(excStr)
 
 def _calculate_coefficients(enes, smatdata, asymcalc):
-    num_data = len(smatdata)
-    num_poly_terms = num_data / 2
-    num_coeffs = num_poly_terms + 1
+    max_M = len(smatdata) / 2
+    num_coeffs = max_M + 1
     num_channels = nw.shape(smatdata[enes[0]])[0]
-    alphas = _initialise_coefficients(num_coeffs, num_channels)
-    betas = _initialise_coefficients(num_coeffs, num_channels)
 
+    sz = num_channels*num_channels*2*max_M
+    sys_mat = nw.matrix(_get_sys_mat_init(sz))
+    res_vec = nw.matrix(_get_res_vec_init(sz))
     for j in range(num_channels):
-        sys_mat = nw.matrix(_get_sys_mat_init(num_data, num_channels, num_poly_terms))
-        res_vec = nw.matrix(_get_res_vec_init(num_data, num_channels))
         for i in range(num_channels):
-            ei = 0
-            for ene in enes:
-                for ti in range(num_poly_terms):  #We have two indices ci (coefficient) and ti (term). We know the first term in the poly expansion so num_coeffs = num_poly_terms + 1 
-                    exp = ti+1
-                    for k in range(num_channels): 
+            for ei,ene in enumerate(enes):
+                kn = asymcalc.k(i, ene)
+                row_index = _row(max_M, num_channels, i, j, ei)
+                res_vec[row_index,0] = _result(smatdata, i, j, ene)
+
+                for mu in range(1,max_M+1):
+                    for k in range(num_channels):
+                        alpha_index = _alpha_index(max_M, num_channels, k, j, mu)
+                        beta_index = _beta_index(alpha_index, max_M, num_channels)
                         if k==i:
-                            alpha_coeff = _primary_alpha(smatdata, asymcalc, 
-                                                         i, j, ene, exp)
-                            beta_coeff = _primary_beta(smatdata, asymcalc, 
-                                                       i, j, ene, exp)
+                            alpha_coeff = _primary_alpha(smatdata, asymcalc, i,
+                                                         j, ene, mu)
+                            beta_coeff = _primary_beta(smatdata, asymcalc, i, j,
+                                                       ene, mu)
                         else:
                             alpha_coeff = _secondary_alpha(smatdata, asymcalc, 
-                                                           i, j, k, ene, exp)
-                            beta_coeff = _secondary_beta(smatdata, asymcalc, 
-                                                         i, j, k, ene, exp)
-                        sys_mat[_row(num_data,i,ei),_alpha_index(num_poly_terms,k,ti)] = alpha_coeff
-                        sys_mat[_row(num_data,i,ei),_beta_index(num_poly_terms,num_channels,k,ti)] = beta_coeff
-                res_vec[_row(num_data,i,ei),0] = _result(smatdata, i, j, ene)
-                ei += 1
-        coeff_vec = nw.lin_solve(sys_mat, res_vec)
-        _copy_column_coeffs(alphas, betas, coeff_vec, num_poly_terms, num_channels, num_coeffs, j)
+                                                           i, j, k, ene, mu)
+                            beta_coeff = _secondary_beta(smatdata, asymcalc, i,
+                                                         j, k, ene, mu)
+                        sys_mat[row_index,alpha_index] = alpha_coeff
+                        sys_mat[row_index,beta_index] = beta_coeff
+    coeff_vec = nw.lin_solve(sys_mat, res_vec)
+
+    alphas = _initialise_coefficients(max_M, num_channels)
+    betas = _initialise_coefficients(max_M, num_channels)
+    _copy_column_coeffs(alphas, betas, coeff_vec, max_M, num_channels)
     return alphas, betas
 
-def _initialise_coefficients(num_coeffs, num_channels):
+def _initialise_coefficients(max_M, num_channels):
     coeffs = []
-    for _ in range(0, num_coeffs):
+    # Add one for the zero coefficients.
+    for _ in range(0, max_M+1):
         mat = nw.matrix(_get_zero_list_mats(num_channels))
         coeffs.append(mat)
     return coeffs
@@ -81,35 +85,34 @@ def _initialise_coefficients(num_coeffs, num_channels):
 def _get_zero_list_mats(num_channels):
     return [[0.0+0.0j]*num_channels]*num_channels
 
-def _get_sys_mat_init(num_data, num_channels, num_poly_terms):
-    return [[0.0]*2*num_poly_terms*num_channels]*num_data*num_channels
+def _get_sys_mat_init(sz):
+    return [[0.0]*sz]*sz
    
-def _get_res_vec_init(num_data, num_channels):
-    return [[0.0]]*num_data*num_channels
+def _get_res_vec_init(sz):
+    return [[0.0]]*sz
 
 
-def _primary_alpha(smatdata, asymcalc, i, j, ene, exp):
-    return _kl(asymcalc,j,ene,1.0) / _kl(asymcalc,i,ene,1.0) * (smatdata[ene][i,i]-1.0) * nw.pow(ene,exp)
+def _primary_alpha(smatdata, asymcalc, i, j, ene, mu):
+    return _kl(asymcalc,j,ene,1.0) / _kl(asymcalc,i,ene,1.0) * (smatdata[ene][i,i]-1.0) * nw.pow(ene,mu)
 
-def _primary_beta(smatdata, asymcalc, i, j, ene, exp):
-    return -1.0j * _kl(asymcalc,i,ene,0.0) * _kl(asymcalc,j,ene,1.0) * (smatdata[ene][i,i]+1.0) * nw.pow(ene,exp)
+def _primary_beta(smatdata, asymcalc, i, j, ene, mu):
+    return -1.0j * _kl(asymcalc,i,ene,0.0) * _kl(asymcalc,j,ene,1.0) * (smatdata[ene][i,i]+1.0) * nw.pow(ene,mu)
 
-def _secondary_alpha(smatdata, asymcalc, i, j, k, ene, exp):
-    return _kl(asymcalc,j,ene,1.0) / _kl(asymcalc,k,ene,1.0) * smatdata[ene][i,k] * nw.pow(ene,exp)
+def _secondary_alpha(smatdata, asymcalc, i, j, k, ene, mu):
+    return _kl(asymcalc,j,ene,1.0) / _kl(asymcalc,k,ene,1.0) * smatdata[ene][i,k] * nw.pow(ene,mu)
 
-def _secondary_beta(smatdata, asymcalc, i, j, k, ene, exp):
-    return -1.0j * _kl(asymcalc,k,ene,0.0) * _kl(asymcalc,j,ene,1.0) * smatdata[ene][i,k] * nw.pow(ene,exp)
+def _secondary_beta(smatdata, asymcalc, i, j, k, ene, mu):
+    return -1.0j * _kl(asymcalc,k,ene,0.0) * _kl(asymcalc,j,ene,1.0) * smatdata[ene][i,k] * nw.pow(ene,mu)
 
 
-def _row(num_data, i, ei):
-    return i*num_data + ei
+def _row(max_M, num_channels, i, j, ei):
+    return i*2*max_M*num_channels + ei*num_channels + j
 
-def _alpha_index(num_poly_terms, i, ti):
-    return i*num_poly_terms + ti
+def _alpha_index(max_M, num_channels, i, j, mu):
+    return i*2*max_M*num_channels + (mu-1)*num_channels + j
 
-def _beta_index(num_poly_terms, num_channels, i, ti):
-    return num_poly_terms*num_channels + i*num_poly_terms + ti
-
+def _beta_index(alpha_index, max_M, num_channels):
+    return alpha_index + max_M*num_channels
 
 def _result(smatdata, i, j, ene):
     num = 0.0
@@ -117,16 +120,18 @@ def _result(smatdata, i, j, ene):
         num = 1.0
     return num - smatdata[ene][i,j]
 
-def _copy_column_coeffs(alphas, betas, coeff_vec, num_poly_terms, num_channels, num_coeffs, j):
-    for ci in range(num_coeffs):
-        ti = ci-1
+def _copy_column_coeffs(alphas, betas, coeff_vec, max_M, num_channels):
+    for mu in range(0,max_M+1):
         for i in range(num_channels):
-            if ci==0:
-                if i==j:
-                    alphas[ci][i,j] = 1.0
-            else:
-                alphas[ci][i,j] = nw.complex(coeff_vec[_alpha_index(num_poly_terms,i,ti),0])
-                betas[ci][i,j] = nw.complex(coeff_vec[_beta_index(num_poly_terms,num_channels,i,ti),0])
+            for j in range(num_channels):
+                if mu==0:
+                    if i==j:
+                        alphas[mu][i,j] = 1.0
+                else:
+                    alpha_index = _alpha_index(max_M, num_channels, i, j, mu)
+                    beta_index = _beta_index(alpha_index, max_M, num_channels)
+                    alphas[mu][i,j] = nw.complex(coeff_vec[alpha_index,0])
+                    betas[mu][i,j] = nw.complex(coeff_vec[beta_index,0])
 
 def _kl(asymcalc, ch, ene, mod):
     k = asymcalc.k(ch, ene)
