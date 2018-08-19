@@ -6,6 +6,7 @@ try:
     import tisutil as tu
 except:
     tu = None
+from parsmat.release import __version__
 
 
 ########################################################################   
