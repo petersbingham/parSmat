@@ -1,13 +1,16 @@
 import pynumwrap as nw
 import sympy as sym
-from sympy.matrices import Matrix as sym_matrix
+# See https://stackoverflow.com/questions/50398584/degradation-of-sympy-det-function-performance-when-applied-to-large-matrices-of
+try:
+    from sympy.polys.polymatrix import PolyMatrix as sym_matrix
+except ImportError:
+    from sympy.matrices import Matrix as sym_matrix
 import collections
 try:
     import tisutil as tu
 except:
     tu = None
 from parsmat.release import __version__
-
 
 ########################################################################   
 ###################### Calculate Coefficients ##########################
