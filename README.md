@@ -18,21 +18,29 @@ Author packages (these will have their own dependencies):
 
 ## Usage
 
-There are three main functions `calculate_coefficients`, `get_elastic_Fin_fun` and `get_elastic_Smat_fun`. Each of the functions take an `channelutil.AsymCalc` like object to describe the channels (see [`channelutil`](https://github.com/petersbingham/channelutil) and example below for more details).
+There are four main functions `calculate_coefficients`, `get_elastic_Fin_fun`,  `get_elastic_Smat_fun` and `get_elastic_Qmat_fun`. Each of the functions take an `channelutil.AsymCalc` like object to describe the channels (see [`channelutil`](https://github.com/petersbingham/channelutil) and example below for more details).
 
 There are two types that the ukrmolmatreader is compatible with, standard python types and mpmath types. Python types is the default. To change to mpmath types call the module function `use_mpmath_types()`.
 
-#### `calculate_coefficients(smatdata, asymcalc)`
+#### Calculation of coefficients
+
+Coefficients are calculated using the following function:
+
+`calculate_coefficients(smatdata, asymcalc)`
 
 The `smatdata`, is a dictionary like (eg python `dict` or a `tisutil.dSmat`) of S-matrices keyed by energy that will be used as input to the fit routine. It returns `alphas` and `betas`.
 
-#### `get_elastic_Fin_fun(coeffs, asymcalc)`
+#### Calculation of scattering quantities
 
-Using the `alphas` and `betas` coefficients returned from `calculate_coefficients` this function returns either an energy function reference or a `tisutil.cMatSympypolyk` describing the parameterised Jost denominator (Fin).
+Once the coefficients have been calculated they can be passed to the following functions for calculation of scattering quantities. All these functions return either an energy function reference or the indicated `tisutil` like container.
 
-#### `get_elastic_Smat_fun(coeffs, asymcalc)`
+`get_elastic_Fin_fun(coeffs, asymcalc)` returns `tisutil.cFinMatSympypolyk`.
 
-Using the `alphas` and `betas` coefficients returned from `calculate_coefficients` this function returns either an energy function reference or a `tisutil.cSmat` describing the parameterised S-matrix.
+`get_elastic_Smat_fun(coeffs, asymcalc)` returns `tisutil.cSmat`.
+
+`get_elastic_Spmat_fun` returns `tisutil.cMat`
+
+`get_elastic_Qmat_fun` returns `tisutil.cQmat`
 
 The following example illustrates. Explanation follows.
 ```python
