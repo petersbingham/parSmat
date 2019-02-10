@@ -140,54 +140,134 @@ def _kl(asymcalc, ch, ene, mod):
 ###################### Parameterised Functions #########################
 ########################################################################
 
-def _convert(fin_only, val, imag=False):
-    if fin_only:
-        v = nw.to_sympy(val)
-        if imag:
-            v *= sym.I
-    else:
-        v = val
-        if imag:
-            v *= 1.j
-    return v
-
-def _get_elastic_matrix(coeffs, asymcalc, fin_only, k):
+def _get_elastic_matrix(coeffs, asymcalc, calc, k):
     alphas = coeffs[0]
     betas = coeffs[1]
     num_channels = asymcalc.get_number_channels()
-    mat_list_fin = []
-    if not fin_only:
-        mat_list_fout = []
-    fact1 = (1.0/2.0)
-    fact2 = 1.0/asymcalc.get_ene_conv()
     for i in range(num_channels):
-        mat_list_fin.append([])
-        if not fin_only:
-            mat_list_fout.append([])
+        calc.chan_start()
         for j in range(num_channels):
             lm = asymcalc.angmom(i)
             ln = asymcalc.angmom(j)
-            val_fin = 0.0
-            val_fout = 0.0
+            calc.reset_terms()
             for ci in range(len(coeffs[0])):
                 A = alphas[ci][i,j]
                 B = betas[ci][i,j]
-                real = _convert(fin_only,A)*k**(ln-lm+2*ci)
-                imag = _convert(fin_only,B,True)*k**(ln+lm+1+2*ci)
-                fact3 = fact1*fact2**ci
-                v = fact3 * (real - imag)
-                val_fin += v
-                if not fin_only:
-                    val_fout += fact3 * (real + imag)
-            mat_list_fin[len(mat_list_fin)-1].append(val_fin)
-            if not fin_only:
-                mat_list_fout[len(mat_list_fout)-1].append(val_fout)
-    if not fin_only:
-        mat_fin = nw.matrix(mat_list_fin)
-        mat_fout = nw.matrix(mat_list_fout)
-        return mat_fout * nw.invert(mat_fin)
-    else:
-        return sym_matrix(mat_list_fin)
+                calc.calc_term(A, B, k, ln, lm, ci, asymcalc.get_ene_conv())
+            calc.set_terms()
+    calc.finialise()
+    return calc.get_matrix()
+
+def _mult(ci, ene_conv):
+    return 1.0/2.0 * (1.0/ene_conv)**ci
+
+## Matrix Calculators
+
+class Fin_calc:
+    def __init__(self):
+        self.list_fin = []
+        self.mat_fin = None
+    def chan_start(self):
+        self.list_fin.append([])
+    def reset_terms(self):
+        self.val_fin = 0.
+    def calc_term(self, A, B, k, ln, lm, ci, ene_conv):
+        real = nw.to_sympy(A)*k**(ln-lm+2*ci)
+        imag = nw.to_sympy(B)*sym.I*k**(ln+lm+1+2*ci)
+        self.val_fin += _mult(ci, ene_conv) * (real - imag)
+    def set_terms(self):
+        self.list_fin[len(self.list_fin)-1].append(self.val_fin)
+    def finialise(self):
+        self.mat_fin = sym_matrix(self.list_fin)
+    def get_matrix(self):
+        return self.mat_fin
+
+class S_calc:
+    def __init__(self):
+        self.list_fin = []
+        self.list_fout = []
+        self.mat_fin = None
+        self.mat_fout = None
+    def chan_start(self):
+        self.list_fin.append([])
+        self.list_fout.append([])
+    def reset_terms(self):
+        self.val_fin = 0.
+        self.val_fout = 0.
+    def calc_term(self, A, B, k, ln, lm, ci, ene_conv):
+        real = A*k**(ln-lm+2*ci)
+        imag = B*1.j*k**(ln+lm+1+2*ci)
+        mult = _mult(ci, ene_conv)
+        self.val_fin += mult * (real - imag)
+        self.val_fout += mult * (real + imag)
+    def set_terms(self):
+        self.list_fin[len(self.list_fin)-1].append(self.val_fin)
+        self.list_fout[len(self.list_fout)-1].append(self.val_fout)
+    def finialise(self):
+        self.mat_fin = nw.matrix(self.list_fin)
+        self.mat_fout = nw.matrix(self.list_fout)
+        self.mat_fin_inv = nw.invert(self.mat_fin)
+    def get_matrix(self):
+        return self.mat_fout * self.mat_fin_inv
+
+class Sp_calc:
+    def __init__(self, s_calc):
+        self.s_calc = s_calc
+        self.list_fin_p = []
+        self.list_fout_p = []
+        self.mat_fin_p = []
+        self.mat_fout_p = []
+    def chan_start(self):
+        self.s_calc.chan_start()
+        self.list_fin_p.append([])
+        self.list_fout_p.append([])
+    def reset_terms(self):
+        self.s_calc.reset_terms()
+        self.val_fin_p = 0.
+        self.val_fout_p = 0.
+    def calc_term(self, A, B, k, ln, lm, ci, ene_conv):
+        self.s_calc.calc_term(A, B, k, ln, lm, ci, ene_conv)
+        real = A*k**(ln-lm+2*ci-2) * (ln-lm+2*ci) * ene_conv
+        imag = B*1.j*k**(ln+lm-1+2*ci) * (ln+lm+1+2*ci) * ene_conv
+        mult = _mult(ci, ene_conv)
+        self.val_fin_p += 1./2. * mult * (real - imag)
+        self.val_fout_p += 1./2. * mult * (real + imag)
+    def set_terms(self):
+        self.s_calc.set_terms()
+        self.list_fin_p[len(self.list_fin_p)-1].append(self.val_fin_p)
+        self.list_fout_p[len(self.list_fout_p)-1].append(self.val_fout_p)
+    def finialise(self):
+        self.s_calc.finialise()
+        self.mat_fin_p = nw.matrix(self.list_fin_p)
+        self.mat_fout_p = nw.matrix(self.list_fout_p)
+    def get_matrix(self):
+        fin_inv = self.s_calc.mat_fin_inv
+        fin_p = self.mat_fin_p
+        fin_inv_p = -fin_inv * fin_p * fin_inv
+
+        fout = self.s_calc.mat_fout
+        fout_p = self.mat_fout_p
+
+        return fout * fin_inv_p  +  fout_p * fin_inv
+
+class Q_calc:
+    def __init__(self):
+        self.s_calc = S_calc()
+        self.sp_calc = Sp_calc(self.s_calc)
+    def chan_start(self):
+        self.sp_calc.chan_start()
+    def reset_terms(self):
+        self.sp_calc.reset_terms()
+    def calc_term(self, A, B, k, ln, lm, ci, ene_conv):
+        self.sp_calc.calc_term(A, B, k, ln, lm, ci, ene_conv)
+    def set_terms(self):
+        self.sp_calc.set_terms()
+    def finialise(self):
+        self.sp_calc.finialise()
+    def get_matrix(self):
+        smat = self.s_calc.get_matrix()
+        smat_p = self.sp_calc.get_matrix()
+        return 1.j*smat*nw.dagger(smat_p)
 
 ########################################################################   
 ######################### Public Interface #############################
@@ -205,17 +285,31 @@ def calculate_coefficients(smatdata, asymcalc):
     return _calculate_coefficients(enes, smatdata, asymcalc)
 
 def get_elastic_Fin_fun(coeffs, asymcalc):
-    mat = _get_elastic_matrix(coeffs, asymcalc, True, nw.sym.symbols('k'))
+    mat = _get_elastic_matrix(coeffs, asymcalc, Fin_calc(), nw.sym.symbols('k'))
     ret = lambda ene: nw.from_sympy_matrix(mat.subs('k', asymcalc.fk(ene)))
     if tu is not None:
         ret = tu.cFinMatSympypolyk(mat, 'k', asymcalc)
     return ret
 
 def get_elastic_Smat_fun(coeffs, asymcalc):
-    funref = lambda ene: _get_elastic_matrix(coeffs, asymcalc, False, 
-                                             asymcalc.fk(ene))
+    ret = lambda ene: _get_elastic_matrix(coeffs, asymcalc, S_calc(),
+                                          asymcalc.fk(ene))
     if tu is not None:
-        ret = tu.cSmat(funref, asymcalc)
+        ret = tu.cSmat(ret, asymcalc)
+    return ret
+
+def get_elastic_Spmat_fun(coeffs, asymcalc):
+    ret = lambda ene: _get_elastic_matrix(coeffs, asymcalc, Sp_calc(S_calc()),
+                                          asymcalc.fk(ene))
+    if tu is not None:
+        ret = tu.cMat(ret, asymcalc)
+    return ret
+
+def get_elastic_Qmat_fun(coeffs, asymcalc):
+    ret = lambda ene: _get_elastic_matrix(coeffs, asymcalc, Q_calc(),
+                                          asymcalc.fk(ene))
+    if tu is not None:
+        ret = tu.cQmat(ret, asymcalc)
     return ret
 
 # Ancillary helper functions:
